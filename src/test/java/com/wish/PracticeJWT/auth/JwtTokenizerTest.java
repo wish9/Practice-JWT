@@ -1,15 +1,20 @@
 package com.wish.PracticeJWT.auth;
 
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.io.Decoders;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.MatcherAssert.assertThat; // 자동 임포트 안됨
 import static org.hamcrest.Matchers.is; // 자동 임포트 안됨
 import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS) // 테스트 클래스의 인스턴스 라이프 사이클을 지정하는 데 사용하는 메서드 // 같은 클래스에서 실행되는 모든 메서드가 동일한 인스턴스 객체를 공유하게 설정했다.
 public class JwtTokenizerTest {
@@ -62,5 +67,38 @@ public class JwtTokenizerTest {
         System.out.println(refreshToken);
 
         assertThat(refreshToken, notNullValue());
+    }
+
+    @DisplayName("does not throw any Exception when jws verify")
+    @Test
+    public void verifySignatureTest() { // 정보 같으니 exception 발생 안하는지 확인
+        String accessToken = getAccessToken(Calendar.MINUTE, 10);
+        assertDoesNotThrow(() -> jwtTokenizer.verifySignature(accessToken, base64EncodedSecretKey));
+    }
+
+    @DisplayName("throw ExpiredJwtException when jws verify")
+    @Test
+    public void verifyExpirationTest() throws InterruptedException { // 토큰 만료되고 ExpiredJwtException이 발생하는지 테스트
+        String accessToken = getAccessToken(Calendar.SECOND, 1);
+        assertDoesNotThrow(() -> jwtTokenizer.verifySignature(accessToken, base64EncodedSecretKey)); // 여기서는 통과
+
+        TimeUnit.MILLISECONDS.sleep(1500);
+
+        assertThrows(ExpiredJwtException.class, () -> jwtTokenizer.verifySignature(accessToken, base64EncodedSecretKey)); // 여기서는 1초 지났으니 토큰만료되고 실패
+    }
+
+
+    private String getAccessToken(int timeUnit, int timeAmount) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("memberId", 1);
+        claims.put("roles", List.of("USER"));
+
+        String subject = "test access token";
+        Calendar calendar = Calendar.getInstance();
+        calendar.add(timeUnit, timeAmount);
+        Date expiration = calendar.getTime();
+        String accessToken = jwtTokenizer.generateAccessToken(claims, subject, expiration, base64EncodedSecretKey);
+
+        return accessToken;
     }
 }

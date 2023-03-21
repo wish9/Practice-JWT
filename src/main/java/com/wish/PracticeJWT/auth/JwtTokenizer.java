@@ -52,4 +52,15 @@ public class JwtTokenizer {
 
         return key;
     }
+
+    public void verifySignature(String jws, String base64EncodedSecretKey) {
+        Key key = getKeyFromBase64EncodedKey(base64EncodedSecretKey);
+
+        Jwts.parserBuilder()
+                .setSigningKey(key)     // 서명에 사용된 Secret Key를 설정
+                .build()
+                .parseClaimsJws(jws);   //  JWT를 파싱해서 Claims를 얻어내기 // jws는 Signature가 포함된 JWT라는 의미
+        // parseClaimsJws(jws)메서드 자체가 검증하는 로직이다.
+        // jws에서 Claims을 얻어내 base64EncodedSecretKey와 같은지 비교
+    }
 }
